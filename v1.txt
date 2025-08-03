@@ -1,0 +1,99 @@
+#include <Arduino.h>
+#include <IRremote.hpp>
+#include <LiquidCrystal.h>
+
+#define IR_REC_PIN 8
+#define LCD_ROWS 16
+#define LCD_COLUMNS 2
+#define UP 0x18
+#define DOWN 0x52
+#define LEFT 0x8
+#define RIGHT 0x5A
+
+void player_up();
+void player_down();
+void player_right();
+void player_left();
+void print_player();
+void tile_clear(int x, int y); // clears the given tile, leaves cursor at the same spot
+
+const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+int player_x = 0, player_y = 0;
+
+void setup()
+{
+    lcd.begin(LCD_ROWS, LCD_COLUMNS);
+    IrReceiver.begin(IR_REC_PIN, ENABLE_LED_FEEDBACK);
+
+    lcd.print("Run From Death");
+    lcd.setCursor(4, 1);
+    lcd.print("And EAT");
+
+    delay(5000);
+    lcd.clear();
+    lcd.print("*");
+}
+
+void loop()
+{
+    if(IrReceiver.decode()) {
+        uint16_t command = IrReceiver.decodedIRData.command;
+        switch (command) {
+        case UP:
+            player_up();
+            break;
+        case DOWN:
+            player_down();
+            break;
+        case LEFT:
+            player_left();
+            break;
+        case RIGHT:
+            player_right();
+            break;
+        default:
+            break;
+        }
+        print_player();
+        delay(50);
+        IrReceiver.resume();
+    }
+}
+
+void player_up() {
+    tile_clear(player_x, player_y);
+    if (player_y) player_y -= 1;
+    else player_y = LCD_COLUMNS - 1;
+}
+
+void player_down() {
+    tile_clear(player_x, player_y);
+    if (player_y != LCD_COLUMNS - 1) player_y += 1;
+    else player_y = 0;
+}
+
+void player_right() {
+    tile_clear(player_x, player_y);
+    if (player_x != LCD_ROWS - 1) player_x += 1;
+    else player_x = 0;
+}
+
+void player_left() {
+    tile_clear(player_x, player_y);
+    if (player_x) player_x -= 1;
+    else player_x = LCD_ROWS - 1;
+}
+
+void tile_clear(int x, int y) {
+    lcd.setCursor(x, y);
+    lcd.print(" ");
+    lcd.setCursor(player_x, player_y);
+}
+
+void print_player() {
+    lcd.setCursor(player_x, player_y);
+    lcd.print("*");
+}
+
+

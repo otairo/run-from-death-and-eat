@@ -1,0 +1,131 @@
+#include <Arduino.h>
+#include <IRremote.hpp>
+#include <LiquidCrystal.h>
+
+#define IR_REC_PIN 8
+#define LCD_ROWS 16
+#define LCD_COLUMNS 2
+#define UP 0x18
+#define DOWN 0x52
+#define LEFT 0x8
+#define RIGHT 0x5A
+
+void player_up();
+void player_down();
+void player_right();
+void player_left();
+void print_player();
+void tile_clear(int x, int y); // clears the given tile, leaves cursor at the same spot
+int near_player(int x, int y); // near means within 2 tiles in any direction
+void food_spawn(); // spawns a food at a random tile !near_player
+
+const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+int player_x = 0, player_y = 0;
+int food_pos[2];
+
+void setup()
+{
+    lcd.begin(LCD_ROWS, LCD_COLUMNS);
+    IrReceiver.begin(IR_REC_PIN, ENABLE_LED_FEEDBACK);
+
+    lcd.print("Run From Death");
+    lcd.setCursor(4, 1);
+    lcd.print("And EAT");
+    food_pos[0] = food_pos[1] = 0;
+    randomSeed(analogRead(A0));
+
+    delay(5000);
+    lcd.clear();
+    lcd.print("*");
+}
+
+void loop()
+{
+    if(IrReceiver.decode()) {
+        uint16_t command = IrReceiver.decodedIRData.command;
+        switch (command) {
+        case UP:
+            player_up();
+            break;
+        case DOWN:
+            player_down();
+            break;
+        case LEFT:
+            player_left();
+            break;
+        case RIGHT:
+            player_right();
+            break;
+        default:
+            break;
+        }
+
+        print_player();
+        if (food_pos[0] == player_x && food_pos[1] == player_y) food_spawn();
+        
+        delay(50);
+        IrReceiver.resume();
+    }
+}
+
+void player_up() {
+    tile_clear(player_x, player_y);
+    if (player_y) player_y -= 1;
+    else player_y = LCD_COLUMNS - 1;
+}
+
+void player_down() {
+    tile_clear(player_x, player_y);
+    if (player_y != LCD_COLUMNS - 1) player_y += 1;
+    else player_y = 0;
+}
+
+void player_right() {
+    tile_clear(player_x, player_y);
+    if (player_x != LCD_ROWS - 1) player_x += 1;
+    else player_x = 0;
+}
+
+void player_left() {
+    tile_clear(player_x, player_y);
+    if (player_x) player_x -= 1;
+    else player_x = LCD_ROWS - 1;
+}
+
+void tile_clear(int x, int y) {
+    lcd.setCursor(x, y);
+    lcd.print(" ");
+    lcd.setCursor(player_x, player_y);
+}
+
+void print_player() {
+    lcd.setCursor(player_x, player_y);
+    lcd.print("*");
+}
+
+int near_player(int x, int y) {
+    // if distance from x or y to the player is less than 2, return 1; else 0;
+    // 0 <= x < ROWS; range of [0, 16)
+    // 0 <= y < COLUMNS; range of y [0, 2)
+    int diff_x = player_x > x ? (player_x - x) : (x - player_x);
+    int diff_y = player_y > y ? (player_y - y) : (y - player_y);
+    if (diff_x <= 2 && diff_y <= 2) return 1;
+    else return 0; 
+}
+
+void food_spawn() {
+    for (;;) {
+        int x = random(0, LCD_ROWS);
+        int y = random(0, LCD_COLUMNS);
+        if (!near_player(x, y)) {
+            food_pos[0] = x;
+            food_pos[1] = y;
+            lcd.setCursor(x, y);
+            lcd.print("F");
+            lcd.setCursor(player_x, player_y);
+            return;
+        }
+    }
+    return;
+}
